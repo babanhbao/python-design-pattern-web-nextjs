@@ -1387,10 +1387,23 @@ body::after {
 
 .drawer-nav button.active {
   border-color: rgba(255, 214, 110, 0.72);
-  background: linear-gradient(145deg, rgba(88, 103, 214, 0.84), rgba(54, 69, 170, 0.8));
+  background: linear-gradient(145deg, rgba(110, 83, 22, 0.82), rgba(74, 56, 16, 0.82));
   box-shadow:
-    inset 3px 0 0 var(--highlight-strong),
-    0 10px 22px rgba(10, 22, 76, 0.44);
+    inset 3px 0 0 #ffe8a8,
+    0 10px 22px rgba(10, 20, 70, 0.36);
+}
+
+.drawer-nav button.active span {
+  color: #fff4cf;
+}
+
+.drawer-nav button.active span:first-child {
+  color: #ffe8a8;
+  text-shadow: 0 0 10px rgba(255, 235, 183, 0.34);
+}
+
+.drawer-nav button.active .pattern-inline {
+  color: #fff0bf;
 }
 
 .drawer-nav {
@@ -1840,6 +1853,20 @@ body::after {
   max-height: 68vh;
 }
 
+.recognition-modal-head h3,
+.pain-modal-head h3,
+.code-modal-head h3,
+.recognition-modal-commentary h4,
+.pain-modal-signals h4,
+.pain-modal-interview h4,
+.code-modal-item h4,
+.code-modal-commentary h4,
+.recognition-item h4,
+.pain-qa-question {
+  color: #ffe8ad !important;
+  text-shadow: 0 0 14px rgba(255, 214, 110, 0.18);
+}
+
 .back-link,
 .neighbor-nav a {
   color: #c9d7ff;
@@ -1947,6 +1974,13 @@ body::after {
   box-shadow: 0 3px 8px rgba(30, 45, 110, 0.24);
 }
 
+.uml-mermaid-shell .edgeLabel,
+.uml-mermaid-shell .edgeLabel span,
+.uml-mermaid-shell .edgeLabel p {
+  background: #ffd66e !important;
+  border-radius: 7px;
+}
+
 .uml-mermaid-shell .edgePath .path {
   stroke: rgba(255, 214, 110, 0.9) !important;
   stroke-width: 1.35px !important;
@@ -1957,7 +1991,7 @@ body::after {
 }
 
 .uml-mermaid-shell .edgeLabel {
-  background: transparent !important;
+  background: #ffd66e !important;
 }
 
 ::selection {
