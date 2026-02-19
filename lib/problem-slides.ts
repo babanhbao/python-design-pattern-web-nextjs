@@ -18,6 +18,12 @@ export type ComparisonRow = {
   withPattern: I18nText;
 };
 
+export type RecognitionCue = {
+  cue: I18nText;
+  code: string;
+  explanation: I18nText;
+};
+
 export type UmlStage = {
   title: I18nText;
   thinking: I18nText;
@@ -55,7 +61,7 @@ export type ProblemLesson = {
     details: I18nList;
   }>;
   solution: I18nList;
-  recognition: I18nList;
+  recognitionCues: RecognitionCue[];
   coupling: {
     before: I18nText;
     after: I18nText;
@@ -65,7 +71,9 @@ export type ProblemLesson = {
   couplingDiagramAfter: string;
   naiveCode: string;
   patternCode: string;
+  modernCode: string;
   patternCodeCommentary: I18nList;
+  modernCodeCommentary: I18nList;
   umlStages: UmlStage[];
   comparison: ComparisonRow[];
   analogy: I18nText;
@@ -617,22 +625,88 @@ const lessonOverrides: Record<string, Partial<ProblemLesson>> = {
         "Hoán đổi implementation bằng composition/config, không phải nhồi kết mới vào orchestration flow."
       ]
     },
-    recognition: {
-      en: [
-        "One class mixes branching policy + IO + cross-cutting (audit/retry).",
-        "Unrelated changes keep landing in the same file.",
-        "Unit tests require many mocks just to reach one behavior.",
-        "The class name is a red-flag umbrella (Manager/Handler/Orchestrator).",
-        "Swapping infrastructure forces edits to business logic."
-      ],
-      vi: [
-        "Một class vừa có policy branching vừa làm IO vừa ôm cross-cutting (audit/retry).",
-        "Thay đổi không liên quan cứ liên tục đập vào cùng một file.",
-        "Unit test cần nhiều mock chỉ để chạm được một hành vi.",
-        "Tên class kiểu 'ôm đồ': Manager/Handler/Orchestrator.",
-        "Đổi infrastructure lại buộc sửa business logic."
-      ]
-    },
+    recognitionCues: [
+      {
+        cue: {
+          en: "One class mixes branching policy + IO + cross-cutting (audit/retry).",
+          vi: "Một class vừa có policy branching vừa làm IO vừa ôm cross-cutting (audit/retry)."
+        },
+        code: `class JobOrchestrator:
+    def handle(self, invoice):
+        if invoice.type == "A": ...
+        else: ...
+
+        self.repo.save(invoice)
+        pdf = self.renderer.render(invoice)
+        self.notifier.send(pdf)
+        self.audit.log("invoice_sent", invoice.id)
+        # self.retry_policy.run(...)`,
+        explanation: {
+          en: "If one method touches DB + PDF + notifications + audit + retries, orchestration has turned into execution.",
+          vi: "Nếu một method chạm DB + PDF + thông báo + audit + retry, orchestration đã biến thành execution."
+        }
+      },
+      {
+        cue: {
+          en: "Unrelated changes keep landing in the same file.",
+          vi: "Thay đổi không liên quan cứ liên tục đập vào cùng một file."
+        },
+        code: `# job_orchestrator.py
+from infra.sql import SqlInvoiceRepository
+from infra.pdf import PdfRendererLibrary
+from infra.notify import EmailNotifier
+from infra.retry import RetryPolicy`,
+        explanation: {
+          en: "The import list itself reveals multiple reasons to change (storage, rendering, notifications, retries).",
+          vi: "Chỉ nhìn danh sách import cũng thấy nhiều lý do thay đổi (lưu trữ, render, thông báo, retry)."
+        }
+      },
+      {
+        cue: {
+          en: "Unit tests require many mocks just to reach one behavior.",
+          vi: "Unit test cần nhiều mock chỉ để chạm được một hành vi."
+        },
+        code: `def test_orchestrator():
+    repo = Mock()
+    renderer = Mock()
+    notifier = Mock()
+    audit = Mock()
+    retry = Mock()
+    orch = JobOrchestrator(repo, renderer, notifier, audit, retry)
+    assert orch.handle(invoice) is not None`,
+        explanation: {
+          en: "When mock setup dominates the test, SRP boundaries are usually blurred.",
+          vi: "Khi test chủ yếu là dựng mock, ranh giới SRP thường đang bị mờ."
+        }
+      },
+      {
+        cue: {
+          en: "The class name is a red-flag umbrella (Manager/Handler/Orchestrator).",
+          vi: "Tên class kiểu 'ôm đồ': Manager/Handler/Orchestrator."
+        },
+        code: `class InvoiceManager:
+    def do_everything(self, invoice): ...`,
+        explanation: {
+          en: "Umbrella names often hide multiple responsibilities behind one convenient entry point.",
+          vi: "Tên kiểu 'ôm đồ' thường che nhiều trách nhiệm sau một entry point tưởng như tiện lợi."
+        }
+      },
+      {
+        cue: {
+          en: "Swapping infrastructure forces edits to business logic.",
+          vi: "Đổi infrastructure lại buộc sửa business logic."
+        },
+        code: `class JobOrchestrator:
+    def __init__(self):
+        self.repo = SqlInvoiceRepository()
+        self.renderer = PdfRendererLibrary()
+        self.notifier = EmailNotifier()`,
+        explanation: {
+          en: "Hard-coded concrete dependencies mean every vendor swap becomes a code change in the policy layer.",
+          vi: "Hard-code dependency concrete khiến mỗi lần đổi vendor lại thành sửa code ở tầng policy."
+        }
+      }
+    ],
     coupling: {
       before: {
         en: "`JobOrchestrator` depends on concrete things, so policy and infrastructure are tangled.",
@@ -813,7 +887,7 @@ Notifier         → EmailNotifier, SlackNotifier`,
   }
 };
 
-const codeOverrides: Record<string, { naive: string; pattern: string }> = {
+const codeOverrides: Record<string, { naive: string; pattern: string; modern?: string }> = {
   "Single Responsibility Principle": {
     naive: `class JobOrchestrator:
     def handle(self, invoice):
@@ -861,6 +935,36 @@ class InvoiceService:
         self.notifier = notifier
 
     def process(self, invoice):
+        saved = self.repo.save(invoice)
+        pdf = self.renderer.render(saved)
+        self.notifier.send(pdf)
+        return pdf`,
+    modern: `from __future__ import annotations
+from dataclasses import dataclass
+from typing import Protocol
+
+@dataclass(frozen=True, slots=True)
+class Invoice:
+    id: str
+    type: str
+    amount: float
+
+class InvoiceRepository(Protocol):
+    def save(self, invoice: Invoice) -> Invoice: ...
+
+class PdfRenderer(Protocol):
+    def render(self, invoice: Invoice) -> bytes: ...
+
+class Notifier(Protocol):
+    def send(self, payload: bytes) -> None: ...
+
+@dataclass(slots=True)
+class InvoiceService:
+    repo: InvoiceRepository
+    renderer: PdfRenderer
+    notifier: Notifier
+
+    def process(self, invoice: Invoice) -> bytes:
         saved = self.repo.save(invoice)
         pdf = self.renderer.render(saved)
         self.notifier.send(pdf)
@@ -1074,19 +1178,61 @@ function buildSolution(title: string, points: string[]): I18nList {
   };
 }
 
-function buildRecognition(title: string): I18nList {
-  return {
-    en: [
-      `You see repeated conditionals or direct wiring whenever ${title}-related behavior changes.`,
-      "A small feature request triggers edits in many modules.",
-      "Unit tests require too many dependencies to exercise one behavior."
-    ],
-    vi: [
-      `Bạn thấy if/else lặp lại hoặc wiring trực tiếp mỗi khi hành vi liên quan ${title} thay đổi.`,
-      "Một feature nhỏ lại buộc sửa nhiều module cùng lúc.",
-      "Unit test cần quá nhiều dependency chỉ để test một hành vi."
-    ]
-  };
+function buildRecognitionCues(title: string, context: I18nText): RecognitionCue[] {
+  return [
+    {
+      cue: {
+        en: `When ${title}-related behavior changes, you keep editing a growing conditional chain.`,
+        vi: `Mỗi khi hành vi liên quan ${title} đổi, bạn lại phải sửa một chuỗi điều kiện ngày càng dài.`
+      },
+      code: `def process(item):
+    if item.type == "A":
+        return handle_a(item)
+    elif item.type == "B":
+        return handle_b(item)
+    # ... add more branches forever
+    return handle_default(item)`,
+      explanation: {
+        en: `In ${context.en}, adding a new case means modifying the existing flow instead of plugging in a new extension point.`,
+        vi: `Trong ${context.vi}, thêm case mới đồng nghĩa phải đụng vào flow hiện có thay vì “cắm” thêm một điểm mở rộng.`
+      }
+    },
+    {
+      cue: {
+        en: "The same branching/wiring logic is duplicated across multiple modules.",
+        vi: "Cùng một logic rẽ nhánh/wiring bị lặp lại ở nhiều module."
+      },
+      code: `# api.py
+if kind == "A": ...
+elif kind == "B": ...
+
+# worker.py
+if kind == "A": ...
+elif kind == "B": ...`,
+      explanation: {
+        en: "A small feature forces edits in several places because there is no stable contract boundary.",
+        vi: "Một feature nhỏ buộc sửa nhiều nơi vì không có ranh giới contract ổn định."
+      }
+    },
+    {
+      cue: {
+        en: "Unit tests need too many collaborators (mocks/fakes) just to reach one behavior.",
+        vi: "Unit test cần quá nhiều collaborator (mock/fake) chỉ để chạm được một hành vi."
+      },
+      code: `def test_service():
+    repo = Mock()
+    renderer = Mock()
+    notifier = Mock()
+    audit = Mock()
+    retry = Mock()
+    svc = Service(repo, renderer, notifier, audit, retry)
+    assert svc.run(...) == ...`,
+      explanation: {
+        en: "If tests are mostly wiring + mocks, you're likely missing clear responsibility boundaries.",
+        vi: "Nếu test chủ yếu là dựng wiring + mock, thường là bạn đang thiếu ranh giới trách nhiệm rõ ràng."
+      }
+    }
+  ];
 }
 
 function buildCoupling(title: string): ProblemLesson["coupling"] {
@@ -1141,12 +1287,54 @@ class ${r0}:
         return self.impl.execute(item)`;
 }
 
+function toPythonIdentifier(value: string, fallback: string): string {
+  const stripped = value.replace(/[^a-zA-Z0-9_]/g, "");
+  if (!stripped) return fallback;
+  if (/^[a-zA-Z_]/.test(stripped)) return stripped;
+  return `${fallback}${stripped}`;
+}
+
+function fallbackModernCode(title: string, roles: string[]): string {
+  const [rawService = "AppService", rawContract = "ExecutionPort", rawImpl = "DefaultExecution"] =
+    roles;
+  const service = toPythonIdentifier(rawService, "AppService");
+  const contract = toPythonIdentifier(rawContract, "ExecutionPort");
+  const impl = toPythonIdentifier(rawImpl, "DefaultExecution");
+  const eventName = title.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+
+  return `from __future__ import annotations
+from dataclasses import dataclass, field
+from typing import Any, Protocol
+
+class ${contract}(Protocol):
+    def execute(self, payload: dict[str, Any]) -> dict[str, Any]: ...
+
+@dataclass(slots=True)
+class ${service}:
+    impl: ${contract}
+    events: list[str] = field(default_factory=list)
+
+    def handle(self, payload: dict[str, Any]) -> dict[str, Any]:
+        result = self.impl.execute(payload)
+        self.events.append("${eventName || "pattern"}_processed")
+        return result
+
+@dataclass(slots=True)
+class ${impl}:
+    def execute(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {"ok": True, "payload": payload}`;
+}
+
 function buildNaiveCode(title: string): string {
   return codeOverrides[title]?.naive ?? fallbackNaiveCode(title);
 }
 
 function buildPatternCode(title: string, roles: string[]): string {
   return codeOverrides[title]?.pattern ?? fallbackPatternCode(title, roles);
+}
+
+function buildModernCode(title: string, roles: string[]): string {
+  return codeOverrides[title]?.modern ?? fallbackModernCode(title, roles);
 }
 
 function buildPatternCodeCommentary(title: string): I18nList {
@@ -1162,6 +1350,21 @@ function buildPatternCodeCommentary(title: string): I18nList {
       "Dependency được tiêm qua contract thay vì hardcode concrete class.",
       "Cấu trúc này giảm coupling và cho phép mở rộng an toàn hơn mà không sửa policy flow.",
       "Unit test có thể tách riêng policy và implementation với setup nhẹ hơn."
+    ]
+  };
+}
+
+function buildModernCodeCommentary(title: string): I18nList {
+  return {
+    en: [
+      `This ${title} variant uses Python dataclasses to reduce boilerplate and keep dependencies explicit.`,
+      "Protocol types document the collaboration contract while remaining implementation-agnostic.",
+      "Using `slots=True` improves memory profile and signals intent for lightweight objects."
+    ],
+    vi: [
+      `Biến thể ${title} này dùng dataclass để giảm boilerplate và giữ dependency rõ ràng.`,
+      "Protocol mô tả contract cộng tác trong khi vẫn độc lập implementation.",
+      "Dùng `slots=True` giúp tối ưu bộ nhớ và thể hiện ý đồ object gọn nhẹ."
     ]
   };
 }
@@ -1621,13 +1824,15 @@ function buildLessons(): ProblemLesson[] {
         pain: buildPain(scenario.problem, scenario.context),
         painBlocks: buildPainBlocks(item.title, scenario.context),
         solution: buildSolution(item.title, item.points),
-        recognition: buildRecognition(item.title),
+        recognitionCues: buildRecognitionCues(item.title, scenario.context),
         coupling: buildCoupling(item.title),
         couplingDiagramBefore: buildCouplingDiagramBefore(scenario.roles),
         couplingDiagramAfter: buildCouplingDiagramAfter(scenario.roles),
         naiveCode: buildNaiveCode(item.title),
         patternCode: buildPatternCode(item.title, scenario.roles),
+        modernCode: buildModernCode(item.title, scenario.roles),
         patternCodeCommentary: buildPatternCodeCommentary(item.title),
+        modernCodeCommentary: buildModernCodeCommentary(item.title),
         umlStages: buildUmlStages(item.title, scenario.roles),
         comparison: buildComparison(item.title),
         analogy: scenario.analogy,
@@ -1661,6 +1866,7 @@ export const deckText: Record<
     insights: string;
     naive: string;
     refactor: string;
+    modern: string;
     uml: string;
     comparison: string;
     analogy: string;
@@ -1686,13 +1892,14 @@ export const deckText: Record<
     problem: "Problem",
     pain: "Pain",
     solution: "Solution",
-    recognition: "How to recognize this pattern need",
+    recognition: "How to recognize when you need this pattern",
     coupling: "Coupling analysis",
     before: "Before",
     after: "After",
     insights: "Coupling insights",
     naive: "Naive version",
     refactor: "Refactor with pattern",
+    modern: "Modern Python (dataclass)",
     uml: "UML evolution and thinking stages",
     comparison: "Pattern vs no pattern",
     analogy: "Real-life analogy",
@@ -1717,13 +1924,14 @@ export const deckText: Record<
     problem: "Problem",
     pain: "Pain",
     solution: "Solution",
-    recognition: "Cách nhận diện cần pattern này",
+    recognition: "Cách nhận diện khi bạn cần pattern này",
     coupling: "Phân tích coupling",
     before: "Trước",
     after: "Sau",
     insights: "Nhận xét coupling",
     naive: "Phiên bản naive",
     refactor: "Refactor bằng pattern",
+    modern: "Phiên bản Python hiện đại (dataclass)",
     uml: "Tiến trình UML và tư duy thiết kế",
     comparison: "So sánh có pattern vs không pattern",
     analogy: "Liên tưởng đời sống",

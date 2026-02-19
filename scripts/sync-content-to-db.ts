@@ -143,6 +143,22 @@ function buildLessonText(lesson: ProblemLesson, lang: Lang): string {
     .map((stage) => `${pickText(stage.title, lang)}: ${pickText(stage.thinking, lang)}`)
     .join("\n");
 
+  const recognitionCues = lesson.recognitionCues
+    .map((cue) => {
+      const codeIndented = cue.code
+        .split("\n")
+        .map((line) => `    ${line}`)
+        .join("\n");
+
+      return [
+        `- ${pickText(cue.cue, lang)}`,
+        "  Code:",
+        codeIndented,
+        `  Explanation: ${pickText(cue.explanation, lang)}`
+      ].join("\n");
+    })
+    .join("\n");
+
   return [
     `Pattern: ${lesson.title}`,
     `Lesson order: ${lesson.order}`,
@@ -170,7 +186,7 @@ function buildLessonText(lesson: ProblemLesson, lang: Lang): string {
     toBulletedList(pickList(lesson.solution, lang)),
     "",
     "Recognition cues:",
-    toBulletedList(pickList(lesson.recognition, lang)),
+    recognitionCues,
     "",
     "Coupling:",
     `- Before: ${pickText(lesson.coupling.before, lang)}`,
