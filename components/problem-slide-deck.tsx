@@ -10,6 +10,7 @@ import {
   type Lang,
   type ProblemLesson
 } from "../lib/problem-slides";
+import { PythonCodeBlock } from "./python-code-block";
 
 type UmlGraphProps = {
   graph: ProblemLesson["umlStages"][number]["graph"];
@@ -400,15 +401,31 @@ export default function ProblemSlideDeck() {
                   <h3>{ui.comparison}</h3>
                   <div className="comparison-table">
                     <div className="comparison-header">
-                      <span>Aspect</span>
-                      <span>No pattern</span>
-                      <span>With pattern</span>
+                      <span className="comparison-cell comparison-aspect">{ui.comparisonAspect}</span>
+                      <span className="comparison-cell comparison-no-pattern">
+                        {ui.comparisonNoPattern}
+                      </span>
+                      <span className="comparison-cell comparison-with-pattern">
+                        {ui.comparisonWithPattern}
+                      </span>
                     </div>
                     {lesson.comparison.map((row) => (
                       <div className="comparison-row" key={row.aspect.en}>
-                        <span>{pickText(row.aspect, lang)}</span>
-                        <span>{pickText(row.noPattern, lang)}</span>
-                        <span>{pickText(row.withPattern, lang)}</span>
+                        <span className="comparison-cell comparison-aspect" data-label={ui.comparisonAspect}>
+                          {pickText(row.aspect, lang)}
+                        </span>
+                        <span
+                          className="comparison-cell comparison-no-pattern"
+                          data-label={ui.comparisonNoPattern}
+                        >
+                          {pickText(row.noPattern, lang)}
+                        </span>
+                        <span
+                          className="comparison-cell comparison-with-pattern"
+                          data-label={ui.comparisonWithPattern}
+                        >
+                          {pickText(row.withPattern, lang)}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -480,15 +497,11 @@ export default function ProblemSlideDeck() {
                   <div className="code-pair">
                     <section>
                       <h4>{ui.naive}</h4>
-                      <pre>
-                        <code>{lesson.naiveCode}</code>
-                      </pre>
+                      <PythonCodeBlock code={lesson.naiveCode} />
                     </section>
                     <section>
                       <h4>{ui.refactor}</h4>
-                      <pre>
-                        <code>{lesson.patternCode}</code>
-                      </pre>
+                      <PythonCodeBlock code={lesson.patternCode} />
                     </section>
                   </div>
                   <h4 className="subheading">Code Explanation</h4>
@@ -645,9 +658,7 @@ export default function ProblemSlideDeck() {
                   <h4>
                     {index + 1}. {pickText(cue.cue, lang)}
                   </h4>
-                  <pre className="recognition-code">
-                    <code>{cue.code}</code>
-                  </pre>
+                  <PythonCodeBlock className="recognition-code" code={cue.code} />
                   <p className="recognition-explanation">{pickText(cue.explanation, lang)}</p>
                 </article>
               ))}
@@ -692,23 +703,17 @@ export default function ProblemSlideDeck() {
             <div className="code-modal-grid">
               <article className="code-modal-item">
                 <h4>{ui.naive}</h4>
-                <pre>
-                  <code>{lesson.naiveCode}</code>
-                </pre>
+                <PythonCodeBlock code={lesson.naiveCode} />
               </article>
 
               <article className="code-modal-item">
                 <h4>{ui.refactor}</h4>
-                <pre>
-                  <code>{lesson.patternCode}</code>
-                </pre>
+                <PythonCodeBlock code={lesson.patternCode} />
               </article>
 
               <article className="code-modal-item">
                 <h4>{ui.modern}</h4>
-                <pre>
-                  <code>{lesson.modernCode}</code>
-                </pre>
+                <PythonCodeBlock code={lesson.modernCode} />
               </article>
             </div>
 

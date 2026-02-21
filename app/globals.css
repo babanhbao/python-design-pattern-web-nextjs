@@ -1093,7 +1093,7 @@ a:focus-visible {
   grid-template-columns: 0.9fr 1.1fr 1.1fr;
 }
 
-.comparison-header span {
+.comparison-header .comparison-cell {
   padding: 0.55rem;
   background: linear-gradient(135deg, var(--ocean), var(--ocean-deep));
   color: #fff;
@@ -1101,7 +1101,7 @@ a:focus-visible {
   font-weight: 700;
 }
 
-.comparison-row span {
+.comparison-row .comparison-cell {
   padding: 0.55rem;
   border-top: 1px solid rgba(19, 72, 100, 0.12);
   font-size: 0.84rem;
@@ -1109,9 +1109,14 @@ a:focus-visible {
   background: rgba(255, 255, 255, 0.74);
 }
 
-.comparison-row span:first-child {
+.comparison-row .comparison-aspect {
   font-weight: 700;
   background: rgba(234, 246, 255, 0.88);
+}
+
+.comparison-row .comparison-cell::before {
+  display: none;
+  content: attr(data-label);
 }
 
 .panel-analogy {
@@ -1877,6 +1882,72 @@ body::after {
   color: #fff;
 }
 
+/* Gold border unification (match Section/Difficulty/Context tags) */
+:root {
+  --gold-border-soft: rgba(255, 214, 110, 0.3);
+  --gold-border-mid: rgba(255, 214, 110, 0.44);
+  --gold-border-strong: rgba(255, 214, 110, 0.62);
+}
+
+.lesson-slide,
+.lesson-main-grid {
+  border-bottom-color: var(--gold-border-soft) !important;
+}
+
+.intro-card,
+.lesson,
+.lesson-head,
+.panel,
+.code-panel,
+.guide-card,
+.detail-hero,
+.lesson-context-block,
+.pain-block,
+.coupling-diagrams article,
+.comparison-table,
+.comparison-row span,
+.comparison-row span:first-child,
+.recognition-item,
+.code-modal-item,
+.pain-qa-item,
+.pain-modal-signals,
+.recognition-modal-commentary,
+.code-modal-commentary,
+.pain-modal,
+.recognition-modal,
+.code-modal,
+.panel-uml,
+.uml-stage,
+.uml-graph,
+.uml-mermaid-shell {
+  border-color: var(--gold-border-soft) !important;
+}
+
+.drawer,
+.drawer-head,
+.drawer-head button,
+.drawer-nav a,
+.drawer-nav button,
+.lang-switch,
+.hamburger {
+  border-color: rgba(255, 214, 110, 0.28) !important;
+}
+
+.drawer-nav a:hover,
+.drawer-nav button:hover,
+.drawer-head button:hover,
+.hamburger:hover {
+  border-color: var(--gold-border-mid) !important;
+}
+
+.lesson-meta span,
+.drawer-nav button.active,
+.recognition-modal-head button,
+.pain-modal-head button,
+.code-modal-head button {
+  border-color: var(--gold-border-strong) !important;
+}
+
 /* UML readability + gold accent */
 .panel-uml {
   border-color: rgba(255, 214, 110, 0.34);
@@ -2255,5 +2326,253 @@ body::after {
     top: -0.75rem;
     margin: -0.75rem -0.75rem 0.66rem;
     padding: 0.68rem 0.75rem;
+  }
+
+  .comparison-table {
+    border: none;
+    background: transparent;
+    gap: 0.62rem;
+  }
+
+  .comparison-header {
+    display: none;
+  }
+
+  .comparison-row {
+    grid-template-columns: 1fr;
+    border: 1px solid var(--gold-border-soft);
+    border-radius: 12px;
+    overflow: hidden;
+    background: linear-gradient(165deg, rgba(34, 50, 128, 0.54), rgba(20, 32, 93, 0.58));
+    box-shadow: inset 0 1px 0 rgba(255, 233, 174, 0.08);
+  }
+
+  .comparison-row .comparison-cell {
+    border-top: none;
+    padding: 0.58rem 0.68rem;
+    background: transparent;
+  }
+
+  .comparison-row .comparison-cell + .comparison-cell {
+    border-top: 1px solid rgba(255, 214, 110, 0.2);
+  }
+
+  .comparison-row .comparison-aspect {
+    background: linear-gradient(145deg, rgba(110, 83, 22, 0.58), rgba(74, 56, 16, 0.58));
+    color: #ffe8ad;
+  }
+
+  .comparison-row .comparison-no-pattern::before,
+  .comparison-row .comparison-with-pattern::before {
+    display: block;
+    margin-bottom: 0.2rem;
+    color: #aabbe9;
+    font-size: 0.67rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+}
+
+/* Python editor-style syntax highlighting */
+.python-code {
+  display: block;
+  white-space: pre;
+  color: #e7eeff;
+  font-family: "JetBrains Mono", "SFMono-Regular", "Menlo", "Monaco", "Consolas", monospace;
+  tab-size: 2;
+}
+
+.py-line {
+  display: block;
+}
+
+.py-token.keyword {
+  color: #f4b860;
+}
+
+.py-token.builtin {
+  color: #76d1ff;
+}
+
+.py-token.string {
+  color: #95f6a5;
+}
+
+.py-token.comment {
+  color: #8ea2d5;
+  font-style: italic;
+}
+
+.py-token.number {
+  color: #ffcb8b;
+}
+
+.py-token.decorator {
+  color: #ffd66e;
+}
+
+.py-token.class-name {
+  color: #67e6d2;
+}
+
+.py-token.func-name {
+  color: #87c4ff;
+}
+
+.py-token.operator,
+.py-token.punctuation {
+  color: #d8e2ff;
+}
+
+.py-token.identifier {
+  color: #f0f4ff;
+}
+
+/* UML edge label sizing fix (avoid clipped tail letters) */
+.uml-mermaid-shell .edgeLabel {
+  overflow: visible !important;
+}
+
+.uml-mermaid-shell .edgeLabel foreignObject {
+  overflow: visible !important;
+}
+
+.uml-mermaid-shell .edgeLabel foreignObject > div {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-width: max-content;
+  white-space: nowrap;
+  line-height: 1.35;
+  padding: 4px 10px !important;
+  border-radius: 9px;
+}
+
+.uml-mermaid-shell .edgeLabel rect,
+.uml-mermaid-shell .edgeLabel .labelBkg {
+  rx: 9;
+  ry: 9;
+}
+
+/* Comparison section color refresh (remove gray feel) */
+.panel-compare .comparison-table {
+  border-color: rgba(255, 214, 110, 0.34) !important;
+  background: linear-gradient(165deg, rgba(28, 43, 116, 0.68), rgba(16, 26, 82, 0.72)) !important;
+}
+
+.panel-compare .comparison-header .comparison-cell {
+  background: linear-gradient(135deg, #ffe9b4, #ffca54) !important;
+  color: #2e2200 !important;
+}
+
+.panel-compare .comparison-row {
+  background: transparent !important;
+}
+
+.panel-compare .comparison-row .comparison-cell {
+  color: #e9f2ff !important;
+  border-top-color: rgba(255, 214, 110, 0.2) !important;
+  background: linear-gradient(160deg, rgba(40, 58, 146, 0.58), rgba(22, 34, 96, 0.62)) !important;
+}
+
+.panel-compare .comparison-row .comparison-aspect {
+  color: #ffe8ad !important;
+  font-weight: 700;
+  background:
+    linear-gradient(140deg, rgba(255, 214, 110, 0.22), rgba(255, 203, 69, 0.14)),
+    linear-gradient(160deg, rgba(50, 72, 166, 0.72), rgba(24, 38, 108, 0.74)) !important;
+}
+
+.panel-compare .comparison-row .comparison-no-pattern {
+  border-left: 3px solid rgba(255, 143, 143, 0.8);
+  background:
+    linear-gradient(140deg, rgba(255, 148, 148, 0.14), rgba(255, 148, 148, 0)),
+    linear-gradient(160deg, rgba(40, 58, 146, 0.58), rgba(22, 34, 96, 0.62)) !important;
+}
+
+.panel-compare .comparison-row .comparison-with-pattern {
+  border-left: 3px solid rgba(120, 247, 230, 0.9);
+  background:
+    linear-gradient(140deg, rgba(120, 247, 230, 0.16), rgba(120, 247, 230, 0)),
+    linear-gradient(160deg, rgba(40, 58, 146, 0.58), rgba(22, 34, 96, 0.62)) !important;
+}
+
+.panel-compare .comparison-row .comparison-no-pattern::before,
+.panel-compare .comparison-row .comparison-with-pattern::before {
+  color: #dce7ff !important;
+}
+
+@media (max-width: 760px) {
+  .panel-compare .comparison-row {
+    border-color: rgba(255, 214, 110, 0.34) !important;
+    background: linear-gradient(165deg, rgba(33, 49, 126, 0.56), rgba(18, 30, 90, 0.6)) !important;
+  }
+
+  .panel-compare .comparison-row .comparison-cell {
+    padding: 0.62rem 0.72rem;
+  }
+
+  .panel-compare .comparison-row .comparison-no-pattern,
+  .panel-compare .comparison-row .comparison-with-pattern {
+    padding-left: 0.8rem;
+  }
+}
+
+/* Keep comparison as table on tablet/phone (no forced single-column stack) */
+@media (max-width: 1040px) {
+  .panel-compare .comparison-header,
+  .panel-compare .comparison-row {
+    grid-template-columns: 0.9fr 1.05fr 1.05fr !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .panel-compare .comparison-table {
+    gap: 0 !important;
+    border: 1px solid rgba(255, 214, 110, 0.34) !important;
+    border-radius: 13px;
+    overflow: hidden;
+    background: linear-gradient(165deg, rgba(28, 43, 116, 0.7), rgba(16, 26, 82, 0.74)) !important;
+  }
+
+  .panel-compare .comparison-header {
+    display: grid !important;
+  }
+
+  .panel-compare .comparison-row {
+    grid-template-columns: 0.9fr 1.05fr 1.05fr !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  .panel-compare .comparison-row .comparison-cell {
+    padding: 0.56rem 0.48rem !important;
+    font-size: 0.73rem;
+    line-height: 1.45;
+    word-break: break-word;
+    border-top: 1px solid rgba(255, 214, 110, 0.18) !important;
+  }
+
+  .panel-compare .comparison-header .comparison-cell {
+    padding: 0.52rem 0.48rem !important;
+    font-size: 0.66rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .panel-compare .comparison-row .comparison-cell::before {
+    display: none !important;
+  }
+
+  .panel-compare .comparison-row .comparison-cell + .comparison-cell {
+    border-left: 1px solid rgba(255, 214, 110, 0.18);
+  }
+
+  .panel-compare .comparison-row .comparison-no-pattern,
+  .panel-compare .comparison-row .comparison-with-pattern {
+    padding-left: 0.48rem;
   }
 }

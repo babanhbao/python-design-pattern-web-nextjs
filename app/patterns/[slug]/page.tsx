@@ -7,6 +7,7 @@ import {
   patternEntries
 } from "../../../lib/pattern-data";
 import { getPatternCodePanels } from "../../../lib/pattern-source";
+import { PythonCodeBlock } from "../../../components/python-code-block";
 
 type PatternPageProps = {
   params: Promise<{ slug: string }>;
@@ -47,9 +48,7 @@ export default async function PatternDetailPage({ params }: PatternPageProps) {
                 {panel.chunks.map((chunk, index) => (
                   <section className="snippet-item" key={`${panel.file}-${index + 1}`}>
                     <p>Snippet {index + 1}</p>
-                    <pre>
-                      <code>{chunk}</code>
-                    </pre>
+                    <PythonCodeBlock code={chunk} />
                   </section>
                 ))}
               </div>

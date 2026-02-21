@@ -234,14 +234,14 @@ const scenarioMap: Record<string, ScenarioMeta> = {
       vi: "Cấu hình runtime toàn cục"
     },
     problem: {
-      en: "Different modules instantiate conflicting configuration objects.",
-      vi: "Nhiều module khởi tạo các config xung đột nhau."
+      en: "Different modules instantiate separate configuration objects and drift out of sync.",
+      vi: "Nhiều module khởi tạo config riêng và dần lệch nhau theo thời gian chạy."
     },
     analogy: {
-      en: "One control tower coordinates one airport.",
-      vi: "Một tháp điều khiển phụ trách một sân bay."
+      en: "Load one canonical `.env` snapshot per process, then let everyone read the same source.",
+      vi: "Nạp một bản `.env` chuẩn cho mỗi process, rồi để mọi nơi cùng đọc một nguồn."
     },
-    roles: ["AppConfig", "ConfigSingleton", "ConfigProvider"]
+    roles: ["ConfigClient", "AppConfigSingleton", "ModuleAReader", "ModuleBReader"]
   },
   Adapter: {
     context: {
@@ -884,6 +884,299 @@ Notifier         → EmailNotifier, SlackNotifier`,
       en: "SRP is not about tiny classes. It's about isolating volatility and keeping stable policy from fighting unstable infrastructure.",
       vi: "SRP không phải chỉ là làm class nhỏ. Nó giúp tách volatility và giữ policy ổn định, không phải 'vật nhau' với infrastructure hay đổi."
     }
+  },
+  Singleton: {
+    architecturalGoal: {
+      en: "Guarantee one process-wide config instance with a clear global access point, without turning it into a business orchestrator.",
+      vi: "Đảm bảo một instance config dùng chung theo process với điểm truy cập rõ ràng, nhưng không biến nó thành lớp điều phối nghiệp vụ."
+    },
+    problemNarrative: {
+      en: [
+        "The target is simple: one canonical runtime config object per process.",
+        "The bug appears when modules instantiate `AppConfig()` independently and drift out of sync.",
+        "Singleton solves cardinality and access, not business ownership.",
+        "So `Singleton` should answer only: how many instances exist and how callers get that instance."
+      ],
+      vi: [
+        "Mục tiêu rất rõ: một object runtime config chuẩn cho mỗi process.",
+        "Lỗi phát sinh khi các module tự `AppConfig()` riêng và dần lệch nhau.",
+        "Singleton giải quyết số lượng instance và điểm truy cập, không giải quyết quyền sở hữu nghiệp vụ.",
+        "Vì vậy `Singleton` chỉ nên trả lời: có bao nhiêu instance và caller lấy instance đó thế nào."
+      ]
+    },
+    pain: {
+      en: [
+        "Module A and Module B read different config values in the same runtime.",
+        "Heavy config initialization is repeated unnecessarily.",
+        "Debugging becomes noisy because state source is not authoritative."
+      ],
+      vi: [
+        "Module A và Module B đọc giá trị config khác nhau trong cùng runtime.",
+        "Khởi tạo config nặng bị lặp lại không cần thiết.",
+        "Việc debug rối hơn vì nguồn state không có tính chuẩn duy nhất."
+      ]
+    },
+    solution: {
+      en: [
+        "Use `Singleton` only for process-wide shared state that must be unique (for example runtime config).",
+        "Expose one controlled access point (`instance()`/`get_instance()`).",
+        "Keep responsibilities narrow: config storage and retrieval only."
+      ],
+      vi: [
+        "Dùng `Singleton` cho state dùng chung theo process cần duy nhất (ví dụ runtime config).",
+        "Cung cấp một điểm truy cập có kiểm soát (`instance()`/`get_instance()`).",
+        "Giữ trách nhiệm hẹp: chỉ lưu và trả config."
+      ]
+    },
+    recognitionCues: [
+      {
+        cue: {
+          en: "Multiple modules instantiate the same config class independently.",
+          vi: "Nhiều module tự khởi tạo cùng một class config một cách độc lập."
+        },
+        code: `# module_a.py
+cfg = AppConfig()  # loads from file/env
+
+# module_b.py
+cfg = AppConfig()  # loads again, may diverge`,
+        explanation: {
+          en: "If each module creates its own config object, you no longer have one authoritative runtime source.",
+          vi: "Nếu mỗi module tự tạo config riêng, bạn không còn một nguồn runtime chuẩn duy nhất."
+        }
+      },
+      {
+        cue: {
+          en: "Initialization is expensive and repeated for every caller.",
+          vi: "Khởi tạo tốn tài nguyên và bị lặp cho mỗi caller."
+        },
+        code: `class AppConfig:
+    def __init__(self):
+        self.values = load_env_and_remote_flags()`,
+        explanation: {
+          en: "Repeated expensive initialization is a practical signal that one shared instance may be appropriate.",
+          vi: "Khởi tạo nặng bị lặp là tín hiệu thực tế cho thấy nên dùng một instance dùng chung."
+        }
+      },
+      {
+        cue: {
+          en: "Call sites need global access, but should all read the same instance.",
+          vi: "Call site cần truy cập toàn cục, nhưng phải cùng đọc một instance."
+        },
+        code: `class AppConfigSingleton:
+    _instance = None
+
+    @classmethod
+    def instance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance`,
+        explanation: {
+          en: "This addresses global access + one instance. It does not imply extra business responsibilities.",
+          vi: "Đoạn này giải quyết truy cập toàn cục + một instance. Nó không hàm ý phải gánh thêm nghiệp vụ."
+        }
+      },
+      {
+        cue: {
+          en: "The singleton starts containing unrelated business operations.",
+          vi: "Singleton bắt đầu chứa các thao tác nghiệp vụ không liên quan."
+        },
+        code: `class AppConfigSingleton:
+    def send_invoice(self, invoice): ...
+    def retry_failed_jobs(self): ...`,
+        explanation: {
+          en: "This is misuse. The problem is SRP violation, not Singleton itself.",
+          vi: "Đây là dùng sai. Vấn đề nằm ở vi phạm SRP, không nằm ở bản thân Singleton."
+        }
+      }
+    ],
+    coupling: {
+      before: {
+        en: "Callers construct config directly, so state origin is fragmented.",
+        vi: "Caller tự khởi tạo config trực tiếp nên nguồn state bị phân mảnh."
+      },
+      after: {
+        en: "All callers go through one access point and receive the same config instance.",
+        vi: "Mọi caller đi qua một điểm truy cập và nhận cùng một config instance."
+      },
+      insights: {
+        en: [
+          "Singleton controls cardinality and access.",
+          "It does not justify adding unrelated domain workflows.",
+          "Pair Singleton with SRP to prevent a global God Object."
+        ],
+        vi: [
+          "Singleton kiểm soát số lượng instance và điểm truy cập.",
+          "Nó không biện minh cho việc nhét thêm workflow nghiệp vụ không liên quan.",
+          "Kết hợp Singleton với SRP để tránh biến nó thành God Object toàn cục."
+        ]
+      }
+    },
+    couplingDiagramBefore: `ModuleA
+ └── AppConfig()
+ModuleB
+ └── AppConfig()
+ModuleC
+ └── AppConfig()`,
+    couplingDiagramAfter: `ModuleA ─┐
+ModuleB ─┼──> AppConfigSingleton.instance() ──> Shared AppConfig
+ModuleC ─┘`,
+    umlStages: [
+      {
+        title: { en: "Stage 1: Many config objects", vi: "Giai đoạn 1: Nhiều object config" },
+        thinking: {
+          en: "Each caller creates its own config; values can drift and debugging is inconsistent.",
+          vi: "Mỗi caller tạo config riêng; giá trị có thể lệch và debug thiếu nhất quán."
+        },
+        graph: {
+          nodes: [
+            { id: "a", label: "ModuleA", x: 12, y: 20 },
+            { id: "b", label: "ModuleB", x: 12, y: 48 },
+            { id: "c", label: "ModuleC", x: 12, y: 76 },
+            { id: "ca", label: "AppConfig A", x: 60, y: 20 },
+            { id: "cb", label: "AppConfig B", x: 60, y: 48 },
+            { id: "cc", label: "AppConfig C", x: 60, y: 76 }
+          ],
+          edges: [
+            { from: "a", to: "ca", label: "new" },
+            { from: "b", to: "cb", label: "new" },
+            { from: "c", to: "cc", label: "new" }
+          ]
+        }
+      },
+      {
+        title: { en: "Stage 2: Add singleton access point", vi: "Giai đoạn 2: Thêm điểm truy cập singleton" },
+        thinking: {
+          en: "Introduce one `instance()` gate to centralize creation and retrieval.",
+          vi: "Thêm một cổng `instance()` để tập trung việc tạo và lấy object."
+        },
+        graph: {
+          nodes: [
+            { id: "a", label: "ModuleA", x: 12, y: 24 },
+            { id: "b", label: "ModuleB", x: 12, y: 50 },
+            { id: "c", label: "ModuleC", x: 12, y: 76 },
+            { id: "s", label: "AppConfigSingleton", x: 50, y: 50 },
+            { id: "cfg", label: "Shared AppConfig", x: 82, y: 50 }
+          ],
+          edges: [
+            { from: "a", to: "s", label: "instance()" },
+            { from: "b", to: "s", label: "instance()" },
+            { from: "c", to: "s", label: "instance()" },
+            { from: "s", to: "cfg", label: "holds" }
+          ]
+        }
+      },
+      {
+        title: { en: "Stage 3: Keep scope narrow", vi: "Giai đoạn 3: Giữ phạm vi trách nhiệm hẹp" },
+        thinking: {
+          en: "Singleton remains a lifecycle/access mechanism; business workflows stay elsewhere.",
+          vi: "Singleton chỉ là cơ chế vòng đời/truy cập; workflow nghiệp vụ nằm ở lớp khác."
+        },
+        graph: {
+          nodes: [
+            { id: "svc", label: "DomainService", x: 16, y: 24 },
+            { id: "s", label: "AppConfigSingleton", x: 50, y: 24 },
+            { id: "cfg", label: "Shared AppConfig", x: 84, y: 24 },
+            { id: "biz", label: "InvoiceService", x: 16, y: 70 },
+            { id: "ops", label: "RetryWorker", x: 50, y: 70 },
+            { id: "noti", label: "Notifier", x: 84, y: 70 }
+          ],
+          edges: [
+            { from: "svc", to: "s", label: "read config" },
+            { from: "s", to: "cfg", label: "single instance" },
+            { from: "biz", to: "noti", label: "business flow" },
+            { from: "ops", to: "noti", label: "ops flow" }
+          ]
+        }
+      }
+    ],
+    comparison: [
+      {
+        aspect: { en: "Instance Control", vi: "Kiểm soát instance" },
+        noPattern: {
+          en: "Multiple accidental instances",
+          vi: "Nhiều instance phát sinh ngoài ý muốn"
+        },
+        withPattern: {
+          en: "One controlled instance per process",
+          vi: "Một instance được kiểm soát cho mỗi process"
+        }
+      },
+      {
+        aspect: { en: "Access Consistency", vi: "Tính nhất quán truy cập" },
+        noPattern: {
+          en: "Call sites construct independently",
+          vi: "Call site tự khởi tạo độc lập"
+        },
+        withPattern: {
+          en: "Call sites read from one access point",
+          vi: "Call site đọc từ một điểm truy cập duy nhất"
+        }
+      },
+      {
+        aspect: { en: "Runtime State", vi: "State runtime" },
+        noPattern: {
+          en: "Config can drift by module",
+          vi: "Config có thể lệch theo từng module"
+        },
+        withPattern: {
+          en: "Config state remains aligned",
+          vi: "State config giữ được sự đồng bộ"
+        }
+      },
+      {
+        aspect: { en: "Responsibility Scope", vi: "Phạm vi trách nhiệm" },
+        noPattern: {
+          en: "Often drifts into God Object",
+          vi: "Thường trượt thành God Object"
+        },
+        withPattern: {
+          en: "Still narrow when paired with SRP",
+          vi: "Vẫn hẹp khi đi cùng SRP"
+        }
+      }
+    ],
+    patternCodeCommentary: {
+      en: [
+        "`instance()` centralizes creation and guarantees one shared object.",
+        "The class still has one narrow job: hold/read config values.",
+        "If business methods appear here, that is an SRP problem, not a Singleton requirement."
+      ],
+      vi: [
+        "`instance()` tập trung hoá việc tạo object và đảm bảo một instance dùng chung.",
+        "Class vẫn chỉ có một việc hẹp: giữ/đọc giá trị config.",
+        "Nếu method nghiệp vụ xuất hiện ở đây, đó là vấn đề SRP, không phải yêu cầu của Singleton."
+      ]
+    },
+    modernCodeCommentary: {
+      en: [
+        "The dataclass version keeps the same singleton contract with clearer typing.",
+        "Modern syntax improves readability, not the core pattern semantics.",
+        "Core rule remains unchanged: one instance + global access."
+      ],
+      vi: [
+        "Phiên bản dataclass giữ nguyên hợp đồng singleton với kiểu dữ liệu rõ hơn.",
+        "Cú pháp hiện đại giúp dễ đọc hơn, không đổi bản chất pattern.",
+        "Quy tắc cốt lõi không đổi: một instance + truy cập toàn cục."
+      ]
+    },
+    strategicOutcome: {
+      en: [
+        "One authoritative config source across the process.",
+        "Lower risk of module-level config drift.",
+        "Faster debugging because state origin is deterministic.",
+        "Cleaner architecture when singleton scope is kept narrow."
+      ],
+      vi: [
+        "Một nguồn config chuẩn duy nhất trong toàn process.",
+        "Giảm rủi ro lệch config giữa các module.",
+        "Debug nhanh hơn vì nguồn state có tính xác định.",
+        "Kiến trúc sạch hơn khi phạm vi singleton được giữ hẹp."
+      ]
+    },
+    coreInsight: {
+      en: "Singleton means one instance plus global access. It does not mean one class should command every business workflow.",
+      vi: "Singleton nghĩa là một instance và truy cập toàn cục. Nó không có nghĩa một class phải chỉ huy mọi workflow nghiệp vụ."
+    }
   }
 };
 
@@ -969,6 +1262,45 @@ class InvoiceService:
         pdf = self.renderer.render(saved)
         self.notifier.send(pdf)
         return pdf`
+  },
+  Singleton: {
+    naive: `class AppConfig:
+    def __init__(self):
+        self.values = load_env_and_remote_flags()
+
+# module_a.py
+cfg_a = AppConfig()
+
+# module_b.py
+cfg_b = AppConfig()`,
+    pattern: `class AppConfigSingleton:
+    _instance = None
+
+    def __init__(self):
+        self.values = load_env_and_remote_flags()
+
+    @classmethod
+    def instance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+# everywhere
+cfg = AppConfigSingleton.instance()`,
+    modern: `from __future__ import annotations
+from dataclasses import dataclass
+from typing import Any, ClassVar
+
+@dataclass(slots=True)
+class AppConfig:
+    values: dict[str, Any]
+    _instance: ClassVar["AppConfig | None"] = None
+
+    @classmethod
+    def instance(cls) -> "AppConfig":
+        if cls._instance is None:
+            cls._instance = cls(values=load_env_and_remote_flags())
+        return cls._instance`
   },
   Strategy: {
     naive: `class WorkerService:
@@ -1869,6 +2201,9 @@ export const deckText: Record<
     modern: string;
     uml: string;
     comparison: string;
+    comparisonAspect: string;
+    comparisonNoPattern: string;
+    comparisonWithPattern: string;
     analogy: string;
     section: string;
     difficulty: string;
@@ -1902,6 +2237,9 @@ export const deckText: Record<
     modern: "Modern Python (dataclass)",
     uml: "UML evolution and thinking stages",
     comparison: "Pattern vs no pattern",
+    comparisonAspect: "Aspect",
+    comparisonNoPattern: "No pattern",
+    comparisonWithPattern: "With pattern",
     analogy: "Real-life analogy",
     section: "Section",
     difficulty: "Difficulty",
@@ -1934,6 +2272,9 @@ export const deckText: Record<
     modern: "Phiên bản Python hiện đại (dataclass)",
     uml: "Tiến trình UML và tư duy thiết kế",
     comparison: "So sánh có pattern vs không pattern",
+    comparisonAspect: "Khía cạnh",
+    comparisonNoPattern: "Không pattern",
+    comparisonWithPattern: "Có pattern",
     analogy: "Liên tưởng đời sống",
     section: "Nhóm",
     difficulty: "Độ khó",
