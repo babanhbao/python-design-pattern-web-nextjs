@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import Script from "next/script";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   deckText,
@@ -140,16 +142,31 @@ function buildPainInterviewQa(
   });
 }
 
-export default function ProblemSlideDeck() {
-  const [lang, setLang] = useState<Lang>("en");
+type ProblemSlideDeckProps = {
+  lessonId?: string;
+  initialLang?: Lang;
+};
+
+export default function ProblemSlideDeck({ lessonId, initialLang = "en" }: ProblemSlideDeckProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [lang, setLang] = useState<Lang>(initialLang);
   const [openNav, setOpenNav] = useState(false);
-  const [activeLessonId, setActiveLessonId] = useState(problemLessons[0]?.id ?? "");
   const [mermaidReady, setMermaidReady] = useState(false);
   const [openRecognitionModal, setOpenRecognitionModal] = useState(false);
   const [openCodeModal, setOpenCodeModal] = useState(false);
   const [openPainModalIndex, setOpenPainModalIndex] = useState<number | null>(null);
   const mermaidInitialized = useRef(false);
   const ui = deckText[lang];
+  const activeLessonId = lessonId ?? problemLessons[0]?.id ?? "";
+
+  const buildHref = useCallback(
+    (targetLessonId: string, nextLang: Lang = lang) => {
+      const query = nextLang === "en" ? "" : `?lang=${nextLang}`;
+      return `/problems/${targetLessonId}${query}`;
+    },
+    [lang]
+  );
 
   const initMermaid = useCallback(() => {
     if (typeof window === "undefined" || !window.mermaid) return;
@@ -178,6 +195,10 @@ export default function ProblemSlideDeck() {
   useEffect(() => {
     initMermaid();
   }, [initMermaid]);
+
+  useEffect(() => {
+    setLang(initialLang);
+  }, [initialLang]);
 
   useEffect(() => {
     setOpenRecognitionModal(false);
@@ -246,14 +267,23 @@ export default function ProblemSlideDeck() {
         <div className="lang-switch">
           <button
             className={lang === "en" ? "active" : ""}
-            onClick={() => setLang("en")}
+            onClick={() => {
+              setLang("en");
+              const nextUrl = pathname === "/" ? "/" : `${pathname}`;
+              router.replace(nextUrl);
+            }}
             type="button"
           >
             EN
           </button>
           <button
             className={lang === "vi" ? "active" : ""}
-            onClick={() => setLang("vi")}
+            onClick={() => {
+              setLang("vi");
+              const nextUrl =
+                pathname === "/" ? "/?lang=vi" : `${pathname}?lang=vi`;
+              router.replace(nextUrl);
+            }}
             type="button"
           >
             VI
@@ -278,21 +308,20 @@ export default function ProblemSlideDeck() {
                   : lessons[0]?.section.vi ?? sectionName}
               </h3>
               {lessons.map((lesson) => (
-                <button
+                <Link
                   className={activeLessonId === lesson.id ? "active" : ""}
+                  href={buildHref(lesson.id)}
                   key={lesson.id}
                   onClick={() => {
-                    setActiveLessonId(lesson.id);
                     setOpenNav(false);
                   }}
-                  type="button"
                 >
                   <span>{lesson.order.toString().padStart(2, "0")}</span>
                   <span>
                     {pickText(lesson.businessProblem, lang)}{" "}
                     <em className="pattern-inline">({lesson.title})</em>
                   </span>
-                </button>
+                </Link>
               ))}
             </section>
           ))}
